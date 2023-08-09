@@ -4,70 +4,89 @@ from scipy.spatial.transform import Rotation as rot
 from scipy.integrate import solve_ivp
 import control as ct
 
-g = 9.81
-r_T = 1
-L = 2
-r = 0.2
-I_sp = 250
-time_step = 0.01
+g = 9.81            # standard gravity (m/s^2)
+r_T = 1             # thrust moment arm (m)
+L = 2               # rocket length (m)
+r = 0.2             # rocket radius (m)
+I_sp = 250          # specific impulse (s)
+time_step = 0.01    # simulation time step (s)
 
-x = -10
+# initial state
+# position (m)
+x = 0
 y = 10
 z = 50
+# velocity (m/s)
 v_x = 0
 v_y = 0
 v_z = 0
+# attitude (rad)
 theta_x = 0
-theta_y = 0
+theta_y = -0.4
 theta_z = 0
+# angular velocity (rad/s)
 omega_x = 0
 omega_y = 0
 omega_z = 0
+# mass (kg)
 m = 170
 
+# principal moments of inertia (kg*m^2)
 I_x = lambda m: (1/4)*m*r**2 + (1/12)*m*L**2
 I_y = lambda m: (1/4)*m*r**2 + (1/12)*m*L**2
 I_z = lambda m: (1/2)*m*r**2
 
+# reference position (m)
 x_ref = 0
 y_ref = 0
 z_ref = 0
 
+# constraints
+# thrust (N)
 T_s_lim = 300
 T_z_lim = 2500
+# z-axis moment (N*m)
 M_z_lim = 100
 
-x = np.array([[x], [y], [z], [v_x], [v_y], [v_z], [theta_x], [theta_y], [theta_z], [omega_x], [omega_y], [omega_z], [m]])
-ref = [[x_ref], [y_ref], [z_ref], [0], [0], [0], [0], [0], [0], [0], [0], [0]]
-x_history = np.zeros((13, 1))
-u_history = np.zeros((4, 1))
+x = np.array([[x], [y], [z], [v_x], [v_y], [v_z], [theta_x], [theta_y], [theta_z], [omega_x], [omega_y], [omega_z], [m]])    # state vector
+ref = [[x_ref], [y_ref], [z_ref], [0], [0], [0], [0], [0], [0], [0], [0], [0]]    # reference vector
+x_history = np.zeros((13, 1))    # state history array
+u_history = np.zeros((4, 1))    # input history array
 
 def dxdt(t, y):
 
+    # velocity (m/s)
     v_x = y[3]
     v_y = y[4]
     v_z = y[5]
+    # attitude (rad)
     theta_x = y[6]
     theta_y = y[7]
     theta_z = y[8]
+    # angular velocity (rad/s)
     omega_x = y[9]
     omega_y = y[10]
     omega_z = y[11]
+    # mass (kg)
     m = y[12]
 
-    rotm = rot.from_euler('zyx', [theta_z, theta_y, theta_x])
-    T_body = u[0:3]
-    T_inertial = np.matmul(rotm.as_matrix(), T_body)
-    T_mag = LA.norm(T_body)
+    rotm = rot.from_euler('zyx', [theta_z, theta_y, theta_x])    # rotation matrix
+    T_body = u[0:3]    # thrust vector body frame (N)
+    T_inertial = np.matmul(rotm.as_matrix(), T_body)    # thrust vector inertial frame (N)
+    T_mag = LA.norm(T_body)    # thrust magnitude (N)
 
+    # intertial frame forces (N)
     F_x = T_inertial[0, 0]
     F_y = T_inertial[1, 0]
     F_z = T_inertial[2, 0] - m*g
+    # body frame moments (N*m)
     M_x = T_body[1, 0]*r_T
     M_y = -T_body[0, 0]*r_T
     M_z = u[3, 0]
+    # mass flow rate (kg/s)
     m_dot = -T_mag/(I_sp*g)
 
+    # derivative of state wrt time
     return np.array([v_x,
                      v_y,
                      v_z,
@@ -84,8 +103,9 @@ def dxdt(t, y):
 
 while x[2] > 0:
 
-    m = x[12, 0]
+    m = x[12, 0]    # mass (kg)
 
+    # state space matrices
     A = [[0, 0, 0, 1, 0, 0,  0, 0, 0, 0, 0, 0],
          [0, 0, 0, 0, 1, 0,  0, 0, 0, 0, 0, 0],
          [0, 0, 0, 0, 0, 1,  0, 0, 0, 0, 0, 0],
@@ -110,18 +130,22 @@ while x[2] > 0:
          [          0, r_T/I_x(m),   0,        0],
          [-r_T/I_y(m),          0,   0,        0],
          [          0,          0,   0, 1/I_z(m)]]
-    Q = np.diag([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
-    R = np.diag([0.01, 0.01, 0.01, 0.01])
-    K, S, E = ct.lqr(A, B, Q, R)
-    u = np.matmul(K, ref - x[0:12]) + [[0], [0], [m*g], [0]]
+    
+    Q = np.diag([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])    # state weights
+    R = np.diag([0.01, 0.01, 0.01, 0.01])    # input weights
+    K, S, E = ct.lqr(A, B, Q, R)    # feedback matrix
+    u = np.matmul(K, ref - x[0:12]) + [[0], [0], [m*g], [0]]    # input
 
+    # constraints
     u[0, 0] = max(-T_s_lim, min(T_s_lim, u[0, 0]))
     u[1, 0] = max(-T_s_lim, min(T_s_lim, u[1, 0]))
     u[2, 0] = max(0, min(T_z_lim, u[2, 0]))
     u[3, 0] = max(-M_z_lim, min(M_z_lim, u[3, 0]))
 
+    # data capture
     x_history = np.append(x_history, x, 1)
     u_history = np.append(u_history, u, 1)
     
+    # integrate state through time
     sol = solve_ivp(dxdt, [0, time_step], np.transpose(x)[0], t_eval=[time_step])
     x = sol.y
