@@ -41,11 +41,11 @@ if __name__ == '__main__':
 
     for t in range(np.size(sim.x_history, 1)):
 
-        lat = -sim.x_history[0, t]/R + lat_i
-        lon = -sim.x_history[1, t]/(R*np.cos(lat_i)) + lon_i
+        lat = sim.x_history[1, t]/R + lat_i
+        lon = sim.x_history[0, t]/(R*np.cos(lat_i)) + lon_i
         alt = sim.x_history[2, t] + alt_i + z_offset
-        phi = sim.x_history[6, t]
-        theta = sim.x_history[7, t]
+        phi = sim.x_history[7, t]
+        theta = sim.x_history[6, t]
         psi = sim.x_history[8, t]
 
         fdm_event_pipe.parent_send(([lat, lon, alt, phi, theta, psi],))
