@@ -8,8 +8,8 @@ import control as ct
 # simulation parameters
 g = 9.81            # standard gravity (m/s^2)
 time_step = 0.01    # simulation time step (s)
-traj = [[0, 0, 0], [0, 0, 50], [10, 0, 50], [10, 10, 50], [0, 10, 50], [0, 0, 50], [0, 0, 0]]    # trajectory
-tol = 1             # position tolerance
+traj = [[0, 0, 0], [0, 0, 50], [10, 0, 50], [10, 10, 50], [0, 10, 50], [0, 0, 50], [0, 0, 0]]    # trajectory (m)
+tol = 1             # position tolerance (m)
 dist_std = 100      # disturbance force standard deviation (N)
 
 # rocket parameters
