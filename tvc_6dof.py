@@ -1,57 +1,40 @@
+import random
 import numpy as np
 from numpy import linalg as LA
 from scipy.spatial.transform import Rotation as rot
 from scipy.integrate import solve_ivp
 import control as ct
 
+# simulation parameters
 g = 9.81            # standard gravity (m/s^2)
-r_T = 1             # thrust moment arm (m)
-L = 2               # rocket length (m)
-r = 0.2             # rocket radius (m)
-I_sp = 250          # specific impulse (s)
 time_step = 0.01    # simulation time step (s)
+traj = [[0, 0, 0], [0, 0, 50], [10, 0, 50], [10, 10, 50], [0, 10, 50], [0, 0, 50], [0, 0, 0]]    # trajectory
+tol = 1             # position tolerance
+dist_std = 100      # disturbance force standard deviation (N)
 
-# initial state
-# position (m)
-x = 0
-y = 10
-z = 50
-# velocity (m/s)
-v_x = 0
-v_y = 0
-v_z = 0
-# attitude (rad)
-theta_x = 0
-theta_y = -0.4
-theta_z = 0
-# angular velocity (rad/s)
-omega_x = 0
-omega_y = 0
-omega_z = 0
-# mass (kg)
-m = 170
-
+# rocket parameters
+m = 170             # initial mass (kg)
+r = 0.2             # rocket radius (m)
+L = 2               # rocket length (m)
+r_T = 1             # thrust moment arm (m)
+I_sp = 250          # specific impulse (s)
 # principal moments of inertia (kg*m^2)
 I_x = lambda m: (1/4)*m*r**2 + (1/12)*m*L**2
 I_y = lambda m: (1/4)*m*r**2 + (1/12)*m*L**2
 I_z = lambda m: (1/2)*m*r**2
 
-# reference position (m)
-x_ref = 0
-y_ref = 0
-z_ref = 0
-
 # constraints
 # thrust (N)
-T_s_lim = 300
-T_z_lim = 2500
-# z-axis moment (N*m)
-M_z_lim = 100
+T_s_magLim = 300
+T_z_magLim = 2500
+# thrust rate (N/s)
+T_s_rateLim = 600
 
-x = np.array([[x], [y], [z], [v_x], [v_y], [v_z], [theta_x], [theta_y], [theta_z], [omega_x], [omega_y], [omega_z], [m]])    # state vector
-ref = [[x_ref], [y_ref], [z_ref], [0], [0], [0], [0], [0], [0], [0], [0], [0]]    # reference vector
-x_history = np.zeros((13, 1))    # state history array
-u_history = np.zeros((4, 1))    # input history array
+# initialize arrays
+x = np.array([[traj[0][0]], [traj[0][1]], [traj[0][2]], [0], [0], [0], [0], [0], [0], [0], [0], [0], [m]])
+x_history = np.zeros((13, 1))
+u_history = np.zeros((4, 1))
+u_last = np.zeros((4, 1))
 
 def dxdt(t, y):
 
@@ -70,19 +53,19 @@ def dxdt(t, y):
     # mass (kg)
     m = y[12]
 
-    rotm = rot.from_euler('zyx', [theta_z, theta_y, theta_x])    # rotation matrix
     T_body = u[0:3]    # thrust vector body frame (N)
+    rotm = rot.from_euler('zyx', [theta_z, theta_y, theta_x])    # rotation matrix
     T_inertial = np.matmul(rotm.as_matrix(), T_body)    # thrust vector inertial frame (N)
     T_mag = LA.norm(T_body)    # thrust magnitude (N)
 
     # intertial frame forces (N)
-    F_x = T_inertial[0, 0]
-    F_y = T_inertial[1, 0]
-    F_z = T_inertial[2, 0] - m*g
+    F_x = T_inertial[0][0] + dist[0]
+    F_y = T_inertial[1][0] + dist[1]
+    F_z = T_inertial[2][0] - m*g
     # body frame moments (N*m)
-    M_x = T_body[1, 0]*r_T
-    M_y = -T_body[0, 0]*r_T
-    M_z = u[3, 0]
+    M_x = T_body[1][0]*r_T - dist[1]*r_dist
+    M_y = -T_body[0][0]*r_T + dist[0]*r_dist
+    M_z = u[3][0]
     # mass flow rate (kg/s)
     m_dot = -T_mag/(I_sp*g)
 
@@ -101,51 +84,66 @@ def dxdt(t, y):
                      (M_z - (I_y(m) - I_x(m))*omega_x*omega_y)/I_z(m),
                      m_dot])
 
-while x[2] > 0:
+for pos in traj:
 
-    m = x[12, 0]    # mass (kg)
+    ref = [[pos[0]], [pos[1]], [pos[2]], [0], [0], [0], [0], [0], [0], [0], [0], [0]]    # reference vector
 
-    # state space matrices
-    A = [[0, 0, 0, 1, 0, 0,  0, 0, 0, 0, 0, 0],
-         [0, 0, 0, 0, 1, 0,  0, 0, 0, 0, 0, 0],
-         [0, 0, 0, 0, 0, 1,  0, 0, 0, 0, 0, 0],
-         [0, 0, 0, 0, 0, 0,  0, g, 0, 0, 0, 0],
-         [0, 0, 0, 0, 0, 0, -g, 0, 0, 0, 0, 0],
-         [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0],
-         [0, 0, 0, 0, 0, 0,  0, 0, 0, 1, 0, 0],
-         [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 1, 0],
-         [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 1],
-         [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0],
-         [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0],
-         [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0]]
-    B = [[          0,          0,   0,        0],
-         [          0,          0,   0,        0],
-         [          0,          0,   0,        0],
-         [        1/m,          0,   0,        0],
-         [          0,        1/m,   0,        0],
-         [          0,          0, 1/m,        0],
-         [          0,          0,   0,        0],
-         [          0,          0,   0,        0],
-         [          0,          0,   0,        0],
-         [          0, r_T/I_x(m),   0,        0],
-         [-r_T/I_y(m),          0,   0,        0],
-         [          0,          0,   0, 1/I_z(m)]]
-    
-    Q = np.diag([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])    # state weights
-    R = np.diag([0.01, 0.01, 0.01, 0.01])    # input weights
-    K, S, E = ct.lqr(A, B, Q, R)    # feedback matrix
-    u = np.matmul(K, ref - x[0:12]) + [[0], [0], [m*g], [0]]    # input
+    while LA.norm(ref - x[0:12]) > tol and x[2] > -0.1:
 
-    # constraints
-    u[0, 0] = max(-T_s_lim, min(T_s_lim, u[0, 0]))
-    u[1, 0] = max(-T_s_lim, min(T_s_lim, u[1, 0]))
-    u[2, 0] = max(0, min(T_z_lim, u[2, 0]))
-    u[3, 0] = max(-M_z_lim, min(M_z_lim, u[3, 0]))
+        m = x[12, 0]    # mass (kg)
 
-    # data capture
-    x_history = np.append(x_history, x, 1)
-    u_history = np.append(u_history, u, 1)
-    
-    # integrate state through time
-    sol = solve_ivp(dxdt, [0, time_step], np.transpose(x)[0], t_eval=[time_step])
-    x = sol.y
+        # state space matrices
+        A = [[0, 0, 0, 1, 0, 0,  0, 0, 0, 0, 0, 0],
+             [0, 0, 0, 0, 1, 0,  0, 0, 0, 0, 0, 0],
+             [0, 0, 0, 0, 0, 1,  0, 0, 0, 0, 0, 0],
+             [0, 0, 0, 0, 0, 0,  0, g, 0, 0, 0, 0],
+             [0, 0, 0, 0, 0, 0, -g, 0, 0, 0, 0, 0],
+             [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0],
+             [0, 0, 0, 0, 0, 0,  0, 0, 0, 1, 0, 0],
+             [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 1, 0],
+             [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 1],
+             [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0],
+             [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0],
+             [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0]]
+        B = [[          0,          0,   0,        0],
+             [          0,          0,   0,        0],
+             [          0,          0,   0,        0],
+             [        1/m,          0,   0,        0],
+             [          0,        1/m,   0,        0],
+             [          0,          0, 1/m,        0],
+             [          0,          0,   0,        0],
+             [          0,          0,   0,        0],
+             [          0,          0,   0,        0],
+             [          0, r_T/I_x(m),   0,        0],
+             [-r_T/I_y(m),          0,   0,        0],
+             [          0,          0,   0, 1/I_z(m)]]
+        
+        Q = np.diag([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])    # state weights
+        R = np.diag([0.01, 0.01, 0.01, 0.01])    # input weights
+        K, S, E = ct.lqr(A, B, Q, R)    # feedback matrix
+        u = np.matmul(K, ref - x[0:12]) + [[0], [0], [m*g], [0]]    # input
+
+        # constraints
+        u[0, 0] = max(-T_s_magLim, min(T_s_magLim, u[0, 0]))
+        u[1, 0] = max(-T_s_magLim, min(T_s_magLim, u[1, 0]))
+        u[2, 0] = max(0, min(T_z_magLim, u[2, 0]))
+        u[0, 0] = min(u[0, 0] - u_last[0, 0], T_s_rateLim*time_step) + u_last[0, 0]
+        u[0, 0] = max(u[0, 0] - u_last[0, 0], -T_s_rateLim*time_step) + u_last[0, 0]
+        u[1, 0] = min(u[1, 0] - u_last[1, 0], T_s_rateLim*time_step) + u_last[1, 0]
+        u[1, 0] = max(u[1, 0] - u_last[1, 0], -T_s_rateLim*time_step) + u_last[1, 0]
+
+        # data capture
+        x_history = np.append(x_history, x, 1)
+        u_history = np.append(u_history, u, 1)
+        u_last = u
+
+        # disturbance force
+        dist = [random.gauss(0, dist_std), random.gauss(0, dist_std)]
+        r_dist = random.triangular(-L/2, L/2)
+        
+        # integrate state through time
+        sol = solve_ivp(dxdt, [0, time_step], np.transpose(x)[0], t_eval=[time_step])
+        x = sol.y
+
+np.savetxt("x_history.out", x_history)
+np.savetxt("u_history.out", u_history)
