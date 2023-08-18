@@ -90,7 +90,7 @@ for pos in traj:
 
     while LA.norm(ref - x[0:12]) > tol and x[2] > -0.1:
 
-        m = x[12, 0]    # mass (kg)
+        m = x[12][0]    # mass (kg)
 
         # state space matrices
         A = [[0, 0, 0, 1, 0, 0,  0, 0, 0, 0, 0, 0],
@@ -124,13 +124,13 @@ for pos in traj:
         u = np.matmul(K, ref - x[0:12]) + [[0], [0], [m*g], [0]]    # input
 
         # constraints
-        u[0, 0] = max(-T_s_magLim, min(T_s_magLim, u[0, 0]))
-        u[1, 0] = max(-T_s_magLim, min(T_s_magLim, u[1, 0]))
-        u[2, 0] = max(0, min(T_z_magLim, u[2, 0]))
-        u[0, 0] = min(u[0, 0] - u_last[0, 0], T_s_rateLim*time_step) + u_last[0, 0]
-        u[0, 0] = max(u[0, 0] - u_last[0, 0], -T_s_rateLim*time_step) + u_last[0, 0]
-        u[1, 0] = min(u[1, 0] - u_last[1, 0], T_s_rateLim*time_step) + u_last[1, 0]
-        u[1, 0] = max(u[1, 0] - u_last[1, 0], -T_s_rateLim*time_step) + u_last[1, 0]
+        u[0][0] = max(-T_s_magLim, min(T_s_magLim, u[0][0]))
+        u[1][0] = max(-T_s_magLim, min(T_s_magLim, u[1][0]))
+        u[2][0] = max(0, min(T_z_magLim, u[2][0]))
+        u[0][0] = min(u[0][0] - u_last[0][0], T_s_rateLim*time_step) + u_last[0][0]
+        u[0][0] = max(u[0][0] - u_last[0][0], -T_s_rateLim*time_step) + u_last[0][0]
+        u[1][0] = min(u[1][0] - u_last[1][0], T_s_rateLim*time_step) + u_last[1][0]
+        u[1][0] = max(u[1][0] - u_last[1][0], -T_s_rateLim*time_step) + u_last[1][0]
 
         # data capture
         x_history = np.append(x_history, x, 1)
