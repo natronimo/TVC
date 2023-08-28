@@ -4,7 +4,7 @@ How to Use
 
 1. Copy and paste the MATLAB "HL20" folder
 from  "C:\Program Files\MATLAB\R2023a\toolbox\aero\animation"
-to    "C:\Program Files\FlightGear 2020.3\data\Aircraft"
+to    "C:\Program Files\FlightGear 2020.3\data\Aircraft."
 
 2. Within the FlightGear "HL20" folder under "Models," replace the existing "HL20.ac" file with the one from the repo.
 
