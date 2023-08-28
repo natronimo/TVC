@@ -4,6 +4,7 @@ from numpy import linalg as LA
 from scipy.spatial.transform import Rotation as rot
 from scipy.integrate import solve_ivp
 import control as ct
+import matplotlib.pyplot as plt
 
 # simulation parameters
 g = 9.81            # standard gravity (m/s^2)
@@ -145,5 +146,12 @@ for pos in traj:
         sol = solve_ivp(dxdt, [0, time_step], np.transpose(x)[0], t_eval=[time_step])
         x = sol.y
 
+# save data
 np.savetxt("x_history.out", x_history)
 np.savetxt("u_history.out", u_history)
+
+# plot trajectory
+ax = plt.figure().add_subplot(projection='3d')
+ax.plot(x_history[0], x_history[1], x_history[2])
+ax.axis('equal')
+plt.show()
