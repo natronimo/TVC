@@ -1,17 +1,9 @@
-import random
 import numpy as np
 from numpy import linalg as LA
 from scipy.spatial.transform import Rotation as rot
 from scipy.integrate import solve_ivp
 import control as ct
 import matplotlib.pyplot as plt
-
-# simulation parameters
-g = 9.81            # standard gravity (m/s^2)
-time_step = 0.01    # simulation time step (s)
-traj = [[0, 0, 0], [0, 0, 50], [10, 0, 50], [10, 10, 50], [0, 10, 50], [0, 0, 50], [0, 0, 0]]    # trajectory (m)
-tol = 1             # position tolerance (m)
-dist_std = 100      # disturbance force standard deviation (N)
 
 # rocket parameters
 m = 170             # initial mass (kg)
@@ -23,18 +15,85 @@ I_sp = 250          # specific impulse (s)
 I_x = lambda m: (1/4)*m*r**2 + (1/12)*m*L**2
 I_y = lambda m: (1/4)*m*r**2 + (1/12)*m*L**2
 I_z = lambda m: (1/2)*m*r**2
-
-# constraints
-# thrust (N)
+# thrust limit (N)
 T_s_magLim = 300
 T_z_magLim = 2500
-# thrust rate (N/s)
+# thrust rate limit (N/s)
 T_s_rateLim = 600
 
+# simulation parameters
+g = 9.81            # standard gravity (m/s^2)
+Ts = 0.01           # time step (s)
+N = 1000            # total steps
+x = np.array([[3], [3], [10], [0], [0], [0], [0], [0], [0], [0], [0], [0], [m]])    # initial state vector
+ref = ([[0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0]])    # reference state vector
+
+# system matrix continuous
+A = [[0, 0, 0, 1, 0, 0,  0, 0, 0, 0, 0, 0],
+     [0, 0, 0, 0, 1, 0,  0, 0, 0, 0, 0, 0],
+     [0, 0, 0, 0, 0, 1,  0, 0, 0, 0, 0, 0],
+     [0, 0, 0, 0, 0, 0,  0, g, 0, 0, 0, 0],
+     [0, 0, 0, 0, 0, 0, -g, 0, 0, 0, 0, 0],
+     [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0],
+     [0, 0, 0, 0, 0, 0,  0, 0, 0, 1, 0, 0],
+     [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 1, 0],
+     [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 1],
+     [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0],
+     [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0],
+     [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0]]
+# input matrix continuous
+B = lambda m: [[          0,          0,   0,        0],
+               [          0,          0,   0,        0],
+               [          0,          0,   0,        0],
+               [        1/m,          0,   0,        0],
+               [          0,        1/m,   0,        0],
+               [          0,          0, 1/m,        0],
+               [          0,          0,   0,        0],
+               [          0,          0,   0,        0],
+               [          0,          0,   0,        0],
+               [          0, r_T/I_x(m),   0,        0],
+               [-r_T/I_y(m),          0,   0,        0],
+               [          0,          0,   0, 1/I_z(m)]]
+# system matrix discrete
+Ad = [[1, 0, 0, Ts,  0,  0,          0, Ts**2*g/2, 0,          0, Ts**3*g/6,  0],
+      [0, 1, 0,  0, Ts,  0, -Ts**2*g/2,         0, 0, -Ts**3*g/6,         0,  0],
+      [0, 0, 1,  0,  0, Ts,          0,         0, 0,          0,         0,  0],
+      [0, 0, 0,  1,  0,  0,          0,      Ts*g, 0,          0, Ts**2*g/2,  0],
+      [0, 0, 0,  0,  1,  0,      -Ts*g,         0, 0, -Ts**2*g/2,         0,  0],
+      [0, 0, 0,  0,  0,  1,          0,         0, 0,          0,         0,  0],
+      [0, 0, 0,  0,  0,  0,          1,         0, 0,         Ts,         0,  0],
+      [0, 0, 0,  0,  0,  0,          0,         1, 0,          0,        Ts,  0],
+      [0, 0, 0,  0,  0,  0,          0,         0, 1,          0,         0, Ts],
+      [0, 0, 0,  0,  0,  0,          0,         0, 0,          1,         0,  0],
+      [0, 0, 0,  0,  0,  0,          0,         0, 0,          0,         1,  0],
+      [0, 0, 0,  0,  0,  0,          0,         0, 0,          0,         0,  1]]
+# input matrix discrete    
+Bd = lambda m: [[Ts**2/(2*m) - Ts**4*g*r_T/(24*I_y(m)),                                     0,           0,                0],
+                [                                    0, Ts**2/(2*m) - Ts**4*g*r_T/(24*I_x(m)),           0,                0],
+                [                                    0,                                     0, Ts**2/(2*m),                0],
+                [        Ts/m - Ts**3*g*r_T/(6*I_y(m)),                                     0,           0,                0],
+                [                                    0,         Ts/m - Ts**3*g*r_T/(6*I_x(m)),           0,                0],
+                [                                    0,                                     0,        Ts/m,                0],
+                [                                    0,                  Ts**2*r_T/(2*I_x(m)),           0,                0],
+                [                -Ts**2*r_T/(2*I_y(m)),                                     0,           0,                0],
+                [                                    0,                                     0,           0, Ts**2/(2*I_z(m))],
+                [                                    0,                         Ts*r_T/I_x(m),           0,                0],
+                [                       -Ts*r_T/I_y(m),                                     0,           0,                0],
+                [                                    0,                                     0,           0,        Ts/I_z(m)]]          
+C = np.eye(12)    # output matrix
+Q = np.diag([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])    # state weight matrix
+R = np.diag([0.01, 0.01, 0.01, 0.01])    # input weight matrix
+G = np.eye(12)    # idk!
+QN = np.eye(12)    # process noise covariance matrix
+RN = np.diag([10, 10, 10, 1, 1, 1, 100, 100, 100, 10, 10, 10])    # measurement noise covariance matrix
+Kf, P, E = ct.dlqe(Ad, G, C, QN, RN)    # LQE matrix
+
 # initialize arrays
-x = np.array([[traj[0][0]], [traj[0][1]], [traj[0][2]], [0], [0], [0], [0], [0], [0], [0], [0], [0], [m]])
-x_history = np.zeros((13, 1))
-u_history = np.zeros((4, 1))
+x_history = np.empty((13, N))
+y_history = np.empty((12, N))
+xe_history = np.empty((12, N))
+u_history = np.empty((4, N))
+xe_last = x[0:12]
 u_last = np.zeros((4, 1))
 
 def dxdt(t, y):
@@ -60,17 +119,17 @@ def dxdt(t, y):
     T_mag = LA.norm(T_body)    # thrust magnitude (N)
 
     # intertial frame forces (N)
-    F_x = T_inertial[0][0] + dist[0]
-    F_y = T_inertial[1][0] + dist[1]
+    F_x = T_inertial[0][0]
+    F_y = T_inertial[1][0]
     F_z = T_inertial[2][0] - m*g
     # body frame moments (N*m)
-    M_x = T_body[1][0]*r_T - dist[1]*r_dist
-    M_y = -T_body[0][0]*r_T + dist[0]*r_dist
+    M_x = T_body[1][0]*r_T
+    M_y = -T_body[0][0]*r_T
     M_z = u[3][0]
     # mass flow rate (kg/s)
     m_dot = -T_mag/(I_sp*g)
 
-    # derivative of state wrt time
+    # derivative of state vector wrt time
     return np.array([v_x,
                      v_y,
                      v_z,
@@ -85,73 +144,55 @@ def dxdt(t, y):
                      (M_z - (I_y(m) - I_x(m))*omega_x*omega_y)/I_z(m),
                      m_dot])
 
-for pos in traj:
+for t in range(N):
 
-    ref = [[pos[0]], [pos[1]], [pos[2]], [0], [0], [0], [0], [0], [0], [0], [0], [0]]    # reference vector
+     m = x[12][0]    # mass (kg)
+     w = 0*np.random.standard_normal(size=(12, 1))    # process noise vector
+     v = 0.1*np.random.standard_normal(size=(12, 1))    # measurement noise vector
 
-    while LA.norm(ref - x[0:12]) > tol and x[2] > -0.1:
+     y = np.matmul(C, x[0:12]) + v    # output vector
 
-        m = x[12][0]    # mass (kg)
+     xe = np.matmul(Ad, xe_last) + np.matmul(Bd(m), u_last)    # state estimate vector prediction step
+     xe = xe + np.matmul(Kf, y - np.matmul(C, xe))    # state estimate vector update step
 
-        # state space matrices
-        A = [[0, 0, 0, 1, 0, 0,  0, 0, 0, 0, 0, 0],
-             [0, 0, 0, 0, 1, 0,  0, 0, 0, 0, 0, 0],
-             [0, 0, 0, 0, 0, 1,  0, 0, 0, 0, 0, 0],
-             [0, 0, 0, 0, 0, 0,  0, g, 0, 0, 0, 0],
-             [0, 0, 0, 0, 0, 0, -g, 0, 0, 0, 0, 0],
-             [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0],
-             [0, 0, 0, 0, 0, 0,  0, 0, 0, 1, 0, 0],
-             [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 1, 0],
-             [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 1],
-             [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0],
-             [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0],
-             [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0]]
-        B = [[          0,          0,   0,        0],
-             [          0,          0,   0,        0],
-             [          0,          0,   0,        0],
-             [        1/m,          0,   0,        0],
-             [          0,        1/m,   0,        0],
-             [          0,          0, 1/m,        0],
-             [          0,          0,   0,        0],
-             [          0,          0,   0,        0],
-             [          0,          0,   0,        0],
-             [          0, r_T/I_x(m),   0,        0],
-             [-r_T/I_y(m),          0,   0,        0],
-             [          0,          0,   0, 1/I_z(m)]]
-        
-        Q = np.diag([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])    # state weights
-        R = np.diag([0.01, 0.01, 0.01, 0.01])    # input weights
-        K, S, E = ct.lqr(A, B, Q, R)    # feedback matrix
-        u = np.matmul(K, ref - x[0:12]) + [[0], [0], [m*g], [0]]    # input
+     Kr, S, E = ct.lqr(A, B(m), Q, R)    # LQR matrix
+     u = np.matmul(Kr, ref - xe) + [[0], [0], [m*g], [0]]    # input vector
 
-        # constraints
-        u[0][0] = max(-T_s_magLim, min(T_s_magLim, u[0][0]))
-        u[1][0] = max(-T_s_magLim, min(T_s_magLim, u[1][0]))
-        u[2][0] = max(0, min(T_z_magLim, u[2][0]))
-        u[0][0] = min(u[0][0] - u_last[0][0], T_s_rateLim*time_step) + u_last[0][0]
-        u[0][0] = max(u[0][0] - u_last[0][0], -T_s_rateLim*time_step) + u_last[0][0]
-        u[1][0] = min(u[1][0] - u_last[1][0], T_s_rateLim*time_step) + u_last[1][0]
-        u[1][0] = max(u[1][0] - u_last[1][0], -T_s_rateLim*time_step) + u_last[1][0]
+     # constraints
+     u[0][0] = max(-T_s_magLim, min(T_s_magLim, u[0][0]))
+     u[1][0] = max(-T_s_magLim, min(T_s_magLim, u[1][0]))
+     u[2][0] = max(0, min(T_z_magLim, u[2][0]))
+     u[0][0] = min(u[0][0] - u_last[0][0], T_s_rateLim*Ts) + u_last[0][0]
+     u[0][0] = max(u[0][0] - u_last[0][0], -T_s_rateLim*Ts) + u_last[0][0]
+     u[1][0] = min(u[1][0] - u_last[1][0], T_s_rateLim*Ts) + u_last[1][0]
+     u[1][0] = max(u[1][0] - u_last[1][0], -T_s_rateLim*Ts) + u_last[1][0]
 
-        # data capture
-        x_history = np.append(x_history, x, 1)
-        u_history = np.append(u_history, u, 1)
-        u_last = u
-
-        # disturbance force
-        dist = [random.gauss(0, dist_std), random.gauss(0, dist_std)]
-        r_dist = random.triangular(-L/2, L/2)
-        
-        # integrate state through time
-        sol = solve_ivp(dxdt, [0, time_step], np.transpose(x)[0], t_eval=[time_step])
-        x = sol.y
+     # data capture
+     x_history[:, t] = x[:, 0]
+     y_history[:, t] = y[:, 0]
+     xe_history[:, t] = xe[:, 0]
+     u_history[:, t] = u[:, 0]
+     xe_last = xe
+     u_last = u
+     
+     # integrate state vector through time
+     sol = solve_ivp(dxdt, [0, Ts], np.transpose(x)[0], t_eval=[Ts])
+     x = sol.y
 
 # save data
 np.savetxt("x_history.out", x_history)
-np.savetxt("u_history.out", u_history)
 
 # plot trajectory
-ax = plt.figure().add_subplot(projection='3d')
-ax.plot(x_history[0], x_history[1], x_history[2])
-ax.axis('equal')
+plt.figure(1).add_subplot(1, 3, 1, projection='3d')
+plt.plot(x_history[0], x_history[1], x_history[2])
+plt.axis('equal')
+plt.title("x")
+plt.figure(1).add_subplot(1, 3, 2, projection='3d')
+plt.plot(y_history[0], y_history[1], y_history[2])
+plt.axis('equal')
+plt.title("y")
+plt.figure(1).add_subplot(1, 3, 3, projection='3d')
+plt.plot(xe_history[0], xe_history[1], xe_history[2])
+plt.axis('equal')
+plt.title("xe")
 plt.show()
