@@ -1,5 +1,4 @@
 import numpy as np
-from numpy import linalg as LA
 from scipy.spatial.transform import Rotation as rot
 from scipy.integrate import solve_ivp
 import control as ct
@@ -26,66 +25,67 @@ g = 9.81            # standard gravity (m/s^2)
 Ts = 0.01           # time step (s)
 N = 1000            # total steps
 x = np.array([[3], [3], [10], [0], [0], [0], [0], [0], [0], [0], [0], [0], [m]])    # initial state vector
-ref = ([[0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0]])    # reference state vector
+u = np.array([[0], [0], [m*g], [0]])    # initial input vector
+ref = np.array([[0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0]])    # reference state vector
 
 # system matrix continuous
-A = [[0, 0, 0, 1, 0, 0,  0, 0, 0, 0, 0, 0],
-     [0, 0, 0, 0, 1, 0,  0, 0, 0, 0, 0, 0],
-     [0, 0, 0, 0, 0, 1,  0, 0, 0, 0, 0, 0],
-     [0, 0, 0, 0, 0, 0,  0, g, 0, 0, 0, 0],
-     [0, 0, 0, 0, 0, 0, -g, 0, 0, 0, 0, 0],
-     [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0],
-     [0, 0, 0, 0, 0, 0,  0, 0, 0, 1, 0, 0],
-     [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 1, 0],
-     [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 1],
-     [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0],
-     [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0],
-     [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0]]
+A = np.array([[0, 0, 0, 1, 0, 0,  0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 1, 0,  0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 1,  0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0,  0, g, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0, -g, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0,  0, 0, 0, 1, 0, 0],
+              [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 1, 0],
+              [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 1],
+              [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0],
+              [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0]])
 # input matrix continuous
-B = lambda m: [[          0,          0,   0,        0],
-               [          0,          0,   0,        0],
-               [          0,          0,   0,        0],
-               [        1/m,          0,   0,        0],
-               [          0,        1/m,   0,        0],
-               [          0,          0, 1/m,        0],
-               [          0,          0,   0,        0],
-               [          0,          0,   0,        0],
-               [          0,          0,   0,        0],
-               [          0, r_T/I_x(m),   0,        0],
-               [-r_T/I_y(m),          0,   0,        0],
-               [          0,          0,   0, 1/I_z(m)]]
+B = lambda m: np.array([[          0,          0,   0,        0],
+                        [          0,          0,   0,        0],
+                        [          0,          0,   0,        0],
+                        [        1/m,          0,   0,        0],
+                        [          0,        1/m,   0,        0],
+                        [          0,          0, 1/m,        0],
+                        [          0,          0,   0,        0],
+                        [          0,          0,   0,        0],
+                        [          0,          0,   0,        0],
+                        [          0, r_T/I_x(m),   0,        0],
+                        [-r_T/I_y(m),          0,   0,        0],
+                        [          0,          0,   0, 1/I_z(m)]])
 # system matrix discrete
-Ad = [[1, 0, 0, Ts,  0,  0,          0, Ts**2*g/2, 0,          0, Ts**3*g/6,  0],
-      [0, 1, 0,  0, Ts,  0, -Ts**2*g/2,         0, 0, -Ts**3*g/6,         0,  0],
-      [0, 0, 1,  0,  0, Ts,          0,         0, 0,          0,         0,  0],
-      [0, 0, 0,  1,  0,  0,          0,      Ts*g, 0,          0, Ts**2*g/2,  0],
-      [0, 0, 0,  0,  1,  0,      -Ts*g,         0, 0, -Ts**2*g/2,         0,  0],
-      [0, 0, 0,  0,  0,  1,          0,         0, 0,          0,         0,  0],
-      [0, 0, 0,  0,  0,  0,          1,         0, 0,         Ts,         0,  0],
-      [0, 0, 0,  0,  0,  0,          0,         1, 0,          0,        Ts,  0],
-      [0, 0, 0,  0,  0,  0,          0,         0, 1,          0,         0, Ts],
-      [0, 0, 0,  0,  0,  0,          0,         0, 0,          1,         0,  0],
-      [0, 0, 0,  0,  0,  0,          0,         0, 0,          0,         1,  0],
-      [0, 0, 0,  0,  0,  0,          0,         0, 0,          0,         0,  1]]
+Ad = np.array([[1, 0, 0, Ts,  0,  0,          0, Ts**2*g/2, 0,          0, Ts**3*g/6,  0],
+               [0, 1, 0,  0, Ts,  0, -Ts**2*g/2,         0, 0, -Ts**3*g/6,         0,  0],
+               [0, 0, 1,  0,  0, Ts,          0,         0, 0,          0,         0,  0],
+               [0, 0, 0,  1,  0,  0,          0,      Ts*g, 0,          0, Ts**2*g/2,  0],
+               [0, 0, 0,  0,  1,  0,      -Ts*g,         0, 0, -Ts**2*g/2,         0,  0],
+               [0, 0, 0,  0,  0,  1,          0,         0, 0,          0,         0,  0],
+               [0, 0, 0,  0,  0,  0,          1,         0, 0,         Ts,         0,  0],
+               [0, 0, 0,  0,  0,  0,          0,         1, 0,          0,        Ts,  0],
+               [0, 0, 0,  0,  0,  0,          0,         0, 1,          0,         0, Ts],
+               [0, 0, 0,  0,  0,  0,          0,         0, 0,          1,         0,  0],
+               [0, 0, 0,  0,  0,  0,          0,         0, 0,          0,         1,  0],
+               [0, 0, 0,  0,  0,  0,          0,         0, 0,          0,         0,  1]])
 # input matrix discrete    
-Bd = lambda m: [[Ts**2/(2*m) - Ts**4*g*r_T/(24*I_y(m)),                                     0,           0,                0],
-                [                                    0, Ts**2/(2*m) - Ts**4*g*r_T/(24*I_x(m)),           0,                0],
-                [                                    0,                                     0, Ts**2/(2*m),                0],
-                [        Ts/m - Ts**3*g*r_T/(6*I_y(m)),                                     0,           0,                0],
-                [                                    0,         Ts/m - Ts**3*g*r_T/(6*I_x(m)),           0,                0],
-                [                                    0,                                     0,        Ts/m,                0],
-                [                                    0,                  Ts**2*r_T/(2*I_x(m)),           0,                0],
-                [                -Ts**2*r_T/(2*I_y(m)),                                     0,           0,                0],
-                [                                    0,                                     0,           0, Ts**2/(2*I_z(m))],
-                [                                    0,                         Ts*r_T/I_x(m),           0,                0],
-                [                       -Ts*r_T/I_y(m),                                     0,           0,                0],
-                [                                    0,                                     0,           0,        Ts/I_z(m)]]          
+Bd = lambda m: np.array([[Ts**2/(2*m) - Ts**4*g*r_T/(24*I_y(m)),                                     0,           0,                0],
+                         [                                    0, Ts**2/(2*m) - Ts**4*g*r_T/(24*I_x(m)),           0,                0],
+                         [                                    0,                                     0, Ts**2/(2*m),                0],
+                         [        Ts/m - Ts**3*g*r_T/(6*I_y(m)),                                     0,           0,                0],
+                         [                                    0,         Ts/m - Ts**3*g*r_T/(6*I_x(m)),           0,                0],
+                         [                                    0,                                     0,        Ts/m,                0],
+                         [                                    0,                  Ts**2*r_T/(2*I_x(m)),           0,                0],
+                         [                -Ts**2*r_T/(2*I_y(m)),                                     0,           0,                0],
+                         [                                    0,                                     0,           0, Ts**2/(2*I_z(m))],
+                         [                                    0,                         Ts*r_T/I_x(m),           0,                0],
+                         [                       -Ts*r_T/I_y(m),                                     0,           0,                0],
+                         [                                    0,                                     0,           0,        Ts/I_z(m)]])
 C = np.eye(12)    # output matrix
-Q = np.diag([1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])    # state weight matrix
-R = np.diag([0.01, 0.01, 0.01, 0.01])    # input weight matrix
-G = np.eye(12)    # idk!
+Q = np.eye(12)    # state weight matrix
+R = 0.01*np.eye(4)    # input weight matrix
+G = np.eye(12)
 QN = np.eye(12)    # process noise covariance matrix
-RN = np.diag([10, 10, 10, 1, 1, 1, 100, 100, 100, 10, 10, 10])    # measurement noise covariance matrix
+RN = 10*np.eye(12)    # measurement noise covariance matrix
 Kf, P, E = ct.dlqe(Ad, G, C, QN, RN)    # LQE matrix
 
 # initialize arrays
@@ -94,7 +94,7 @@ y_history = np.empty((12, N))
 xe_history = np.empty((12, N))
 u_history = np.empty((4, N))
 xe_last = x[0:12]
-u_last = np.zeros((4, 1))
+u_last = u
 
 def dxdt(t, y):
 
@@ -116,16 +116,16 @@ def dxdt(t, y):
     T_body = u[0:3]    # thrust vector body frame (N)
     rotm = rot.from_euler('zyx', [theta_z, theta_y, theta_x])    # rotation matrix
     T_inertial = np.matmul(rotm.as_matrix(), T_body)    # thrust vector inertial frame (N)
-    T_mag = LA.norm(T_body)    # thrust magnitude (N)
+    T_mag = np.linalg.norm(T_body)    # thrust magnitude (N)
 
     # intertial frame forces (N)
-    F_x = T_inertial[0][0]
-    F_y = T_inertial[1][0]
-    F_z = T_inertial[2][0] - m*g
+    F_x = T_inertial[0, 0]
+    F_y = T_inertial[1, 0]
+    F_z = T_inertial[2, 0] - m*g
     # body frame moments (N*m)
-    M_x = T_body[1][0]*r_T
-    M_y = -T_body[0][0]*r_T
-    M_z = u[3][0]
+    M_x = T_body[1, 0]*r_T
+    M_y = -T_body[0, 0]*r_T
+    M_z = u[3, 0]
     # mass flow rate (kg/s)
     m_dot = -T_mag/(I_sp*g)
 
@@ -146,9 +146,12 @@ def dxdt(t, y):
 
 for t in range(N):
 
-     m = x[12][0]    # mass (kg)
-     w = 0*np.random.standard_normal(size=(12, 1))    # process noise vector
-     v = 0.1*np.random.standard_normal(size=(12, 1))    # measurement noise vector
+     # integrate state vector through time
+     sol = solve_ivp(dxdt, [0, Ts], np.transpose(x)[0], t_eval=[Ts])
+     x = sol.y
+
+     m = x[12, 0]    # mass (kg)
+     v = 0.1*np.random.standard_normal((12, 1))    # measurement noise vector
 
      y = np.matmul(C, x[0:12]) + v    # output vector
 
@@ -156,16 +159,12 @@ for t in range(N):
      xe = xe + np.matmul(Kf, y - np.matmul(C, xe))    # state estimate vector update step
 
      Kr, S, E = ct.lqr(A, B(m), Q, R)    # LQR matrix
-     u = np.matmul(Kr, ref - xe) + [[0], [0], [m*g], [0]]    # input vector
+     u = np.matmul(Kr, ref - xe) + np.array([[0], [0], [m*g], [0]])    # input vector
 
      # constraints
-     u[0][0] = max(-T_s_magLim, min(T_s_magLim, u[0][0]))
-     u[1][0] = max(-T_s_magLim, min(T_s_magLim, u[1][0]))
-     u[2][0] = max(0, min(T_z_magLim, u[2][0]))
-     u[0][0] = min(u[0][0] - u_last[0][0], T_s_rateLim*Ts) + u_last[0][0]
-     u[0][0] = max(u[0][0] - u_last[0][0], -T_s_rateLim*Ts) + u_last[0][0]
-     u[1][0] = min(u[1][0] - u_last[1][0], T_s_rateLim*Ts) + u_last[1][0]
-     u[1][0] = max(u[1][0] - u_last[1][0], -T_s_rateLim*Ts) + u_last[1][0]
+     u[0:2] = np.clip(u[0:2], -T_s_magLim, T_s_magLim)
+     u[2] = np.clip(u[2], 0, T_z_magLim)
+     u[0:2] = np.clip(u[0:2] - u_last[0:2], -T_s_rateLim*Ts, T_s_rateLim*Ts) + u_last[0:2]
 
      # data capture
      x_history[:, t] = x[:, 0]
@@ -174,10 +173,6 @@ for t in range(N):
      u_history[:, t] = u[:, 0]
      xe_last = xe
      u_last = u
-     
-     # integrate state vector through time
-     sol = solve_ivp(dxdt, [0, Ts], np.transpose(x)[0], t_eval=[Ts])
-     x = sol.y
 
 # save data
 np.savetxt("x_history.out", x_history)
