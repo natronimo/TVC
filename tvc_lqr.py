@@ -1,30 +1,28 @@
 import numpy as np
-from scipy.spatial.transform import Rotation as rot
+from scipy.spatial.transform import Rotation
 from scipy.integrate import solve_ivp
 import control as ct
 import matplotlib.pyplot as plt
 
 # rocket parameters
-m = 170             # initial mass (kg)
-r = 0.2             # rocket radius (m)
-L = 2               # rocket length (m)
-r_T = 1             # thrust moment arm (m)
-I_sp = 250          # specific impulse (s)
+m = 170              # initial mass (kg)
+r = 0.2              # rocket radius (m)
+L = 2                # rocket length (m)
+r_T = 1              # thrust moment arm (m)
+I_sp = 250           # specific impulse (s)
+T_s_magLim = 300     # x y axes thrust limit (N)
+T_z_magLim = 2500    # z axis thrust limit (N)
+T_s_rateLim = 600    # x y axes thrust rate limit (N/s)
 # principal moments of inertia (kg*m^2)
 I_x = lambda m: (1/4)*m*r**2 + (1/12)*m*L**2
 I_y = lambda m: (1/4)*m*r**2 + (1/12)*m*L**2
 I_z = lambda m: (1/2)*m*r**2
-# thrust limit (N)
-T_s_magLim = 300
-T_z_magLim = 2500
-# thrust rate limit (N/s)
-T_s_rateLim = 600
 
 # simulation parameters
-g = 9.81            # standard gravity (m/s^2)
-Ts = 0.01           # time step (s)
-N = 1000            # total steps
-x = np.array([[3], [3], [10], [0], [0], [0], [0], [0], [0], [0], [0], [0], [m]])    # initial state vector
+g = 9.81             # gravitational acceleration (m/s^2)
+Ts = 0.01            # time step (s)
+N = 1000             # total steps
+x = np.array([[0], [0], [10], [0], [0], [0], [0], [0], [0], [0], [0], [0], [m]])    # initial state vector
 u = np.array([[0], [0], [m*g], [0]])    # initial input vector
 ref = np.array([[0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0]])    # reference state vector
 
@@ -102,7 +100,7 @@ def dxdt(t, y):
     v_x = y[3]
     v_y = y[4]
     v_z = y[5]
-    # attitude (rad)
+    # euler angles (rad)
     theta_x = y[6]
     theta_y = y[7]
     theta_z = y[8]
@@ -114,7 +112,7 @@ def dxdt(t, y):
     m = y[12]
 
     T_body = u[0:3]    # thrust vector body frame (N)
-    rotm = rot.from_euler('zyx', [theta_z, theta_y, theta_x])    # rotation matrix
+    rotm = Rotation.from_euler('zyx', [theta_z, theta_y, theta_x])    # rotation matrix
     T_inertial = np.matmul(rotm.as_matrix(), T_body)    # thrust vector inertial frame (N)
     T_mag = np.linalg.norm(T_body)    # thrust magnitude (N)
 
@@ -146,33 +144,33 @@ def dxdt(t, y):
 
 for t in range(N):
 
-     # integrate state vector through time
-     sol = solve_ivp(dxdt, [0, Ts], np.transpose(x)[0], t_eval=[Ts])
-     x = sol.y
+    # integrate state vector through time
+    sol = solve_ivp(dxdt, [0, Ts], np.transpose(x)[0], t_eval=[Ts])
+    x = sol.y    # state vector
 
-     m = x[12, 0]    # mass (kg)
-     v = 0.1*np.random.standard_normal((12, 1))    # measurement noise vector
+    m = x[12, 0]    # mass (kg)
+    v = 0.1*np.random.standard_normal((12, 1))    # measurement noise vector
 
-     y = np.matmul(C, x[0:12]) + v    # output vector
+    y = np.matmul(C, x[0:12]) + v    # output vector
 
-     xe = np.matmul(Ad, xe_last) + np.matmul(Bd(m), u_last)    # state estimate vector prediction step
-     xe = xe + np.matmul(Kf, y - np.matmul(C, xe))    # state estimate vector update step
+    xe = np.matmul(Ad, xe_last) + np.matmul(Bd(m), u_last)    # state estimate vector predict step
+    xe = xe + np.matmul(Kf, y - np.matmul(C, xe))    # state estimate vector update step
 
-     Kr, S, E = ct.lqr(A, B(m), Q, R)    # LQR matrix
-     u = np.matmul(Kr, ref - xe) + np.array([[0], [0], [m*g], [0]])    # input vector
+    Kr, S, E = ct.lqr(A, B(m), Q, R)    # LQR matrix
+    u = np.matmul(Kr, ref - xe) + np.array([[0], [0], [m*g], [0]])    # input vector
 
-     # constraints
-     u[0:2] = np.clip(u[0:2], -T_s_magLim, T_s_magLim)
-     u[2] = np.clip(u[2], 0, T_z_magLim)
-     u[0:2] = np.clip(u[0:2] - u_last[0:2], -T_s_rateLim*Ts, T_s_rateLim*Ts) + u_last[0:2]
+    # constrain input
+    u[0:2] = np.clip(u[0:2], -T_s_magLim, T_s_magLim)
+    u[2] = np.clip(u[2], 0, T_z_magLim)
+    u[0:2] = np.clip(u[0:2] - u_last[0:2], -T_s_rateLim*Ts, T_s_rateLim*Ts) + u_last[0:2]
 
-     # data capture
-     x_history[:, t] = x[:, 0]
-     y_history[:, t] = y[:, 0]
-     xe_history[:, t] = xe[:, 0]
-     u_history[:, t] = u[:, 0]
-     xe_last = xe
-     u_last = u
+    # capture data
+    x_history[:, t] = x[:, 0]
+    y_history[:, t] = y[:, 0]
+    xe_history[:, t] = xe[:, 0]
+    u_history[:, t] = u[:, 0]
+    xe_last = xe
+    u_last = u
 
 # save data
 np.savetxt("x_history.out", x_history)
