@@ -8,14 +8,16 @@ Next, we will substitute the inputs into the above equation.
 
 
 ## Simulation Block Diagram
-The simulation begins with a state vector, **x**, an input vector, **u**, and a disturbance force vector, **w**. These vectors are fed into the dxdt function which is numerically integrated through time to return the state vector at the next time step. The state vector is multiplied by the output matrix, **C**, and added to a measurement noise vector, **v**, to create the output vector, **y**. The output vector is fed into a Kalman Filter, which uses the previous state estimate vector, **x_hat**, and the previous input vector to create the state estimate vector. The state estimate vector is subtracted by the reference state vector, **r_x**, multiplied by the LQR matrix, **K**, and added to the reference input vector, **r_u**, to create the input vector. The loop continues.
+The simulation begins with a state vector, **x**, an input vector, **u**, and a randomized disturbance force vector, **w**. These vectors are fed into the dxdt function which is numerically integrated through time to return the state vector at the next time step. The state vector is multiplied by the output matrix, **C**, and added to a randomized measurement noise vector, **v**, to create the output vector, **y**. The output vector is fed into a Kalman Filter, which uses the previous state estimate vector, **x_hat**, and the previous input vector to create the state estimate vector. The state estimate vector is subtracted by the reference state vector, **r_x**, multiplied by the LQR matrix, **K**, and added to the reference input vector, **r_u**, to create the input vector. The loop continues.
+
+!(<blockquote class="imgur-embed-pub" lang="en" data-id="a/IDOhoya" data-context="false" ><a href="//imgur.com/a/IDOhoya"></a></blockquote><script async src="//s.imgur.com/min/embed.js" charset="utf-8"></script>)
 
 ## Control Law Design
 The most powerful methods of control are designed for linear systems. The rocket dynamics are highly nonlinear, but they can be linearized around a fixed point to utilize such methods as optimal control. A fixed point, for our purposes, is a state where the system will remain in equlibrium when subject to a constant input. The rocket's fixed point is in the vertical orientation with the body frame thrust vector represented as <0, 0, mg>. This presents a problem because mass is constantly decreasing as fuel is expended.
-For our linearized dynamics, we will everywhere substitute T for mg and make the dynamics functions of the rocket's mass.
+To overcome this, we will everywhere substitute mg for T and make the linearized model a function of the rocket's mass.
 
 ## State Estimation
-
+To account for 
 
 ## Visualization
 
