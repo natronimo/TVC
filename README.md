@@ -29,17 +29,17 @@ The state vector will henceforth be referred to as **x** and the time derivative
 
 ![image](https://github.com/natronimo/TVC/assets/123428083/a94c63f2-d154-476a-966c-919c594e87e6)
 
-The simulation begins with a state vector, an input vector, and a randomized disturbance force vector, **w**. These vectors are fed into the dxdt function which is numerically integrated through time to create the state vector at the next time step.
+The simulation begins with a state vector **x**, an input vector **u**, and a randomized disturbance force vector **w**. These vectors are fed into the dxdt function which is numerically integrated through time to create the state vector **x** at the next time step.
 
-The state vector is multiplied by the output matrix and added to a randomized measurement noise vector, **v**, to create the output vector.
-
-IMAGE
-
-The output vector is fed into a Kalman Filter, which uses the previous state estimate vector and the previous input vector to create the state estimate vector.
+The state vector **x** is multiplied by the output matrix **C** and added to a randomized measurement noise vector **v**, to create the output vector **y**.
 
 IMAGE
 
-The state estimate vector is subtracted by the reference state vector, multiplied by the LQR matrix, and added to the reference input vector to create the input vector.
+The output vector **y** is fed into a Kalman Filter, which uses the previous state estimate vector **x̂** and the previous input vector **u** to create the state estimate vector **x̂**.
+
+IMAGE
+
+The state estimate vector **x̂** is subtracted by the reference state vector **r**<sub>x</sub>, multiplied by the LQR matrix **K**, and added to the reference input vector **r**<sub>u</sub> to create the input vector **u**.
 
 IMAGE
 
