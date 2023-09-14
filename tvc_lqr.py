@@ -84,8 +84,7 @@ R = 0.01*np.eye(4)    # input weight matrix
 G = np.eye(12)    # process noise matrix
 QN = np.eye(12)    # process noise covariance matrix
 RN = 10*np.eye(12)    # measurement noise covariance matrix
-Kf, P, E = ct.dlqe(Ad, G, C, QN, RN)    # LQE matrix
-
+Ke, P, E = ct.dlqe(Ad, G, C, QN, RN)    # LQE matrix
 
 # initialize arrays
 x_history = np.empty((13, N))
@@ -155,7 +154,7 @@ for t in range(N):
     y = np.matmul(C, x[0:12]) + v    # output vector
 
     xe = np.matmul(Ad, xe_last) + np.matmul(Bd(m), u_last)    # state estimate vector predict step
-    xe = xe + np.matmul(Kf, y - np.matmul(C, xe))    # state estimate vector update step
+    xe = xe + np.matmul(Ke, y - np.matmul(C, xe))    # state estimate vector update step
 
     Kr, S, E = ct.lqr(A, B(m), Q, R)    # LQR matrix
     u = np.matmul(Kr, ref - xe) + np.array([[0], [0], [m*g], [0]])    # input vector
