@@ -73,6 +73,8 @@ To derive the system matrix **A**, the jacobian of **ẋ** with respect to **x**
 
 The LQR matrix is found by solving a cost function, which takes as inputs the system matrix, input matrix, state weight matrix, and input weight matrix. In the simulation, the LQR matrix is computed by the Python Control Systems Library. The input matrix is a function of mass, which is variable over the course of the simulation. This means that the LQR matrix needs to be recomputed at each time step with the new mass.
 
+We have substituted a non-zero input vector into the model. The rocket "thinks" that this input is present, but it isn't. The substituted input vector must be added to the input vector **u** as a reference input **r**<sub>u</sub>.
+
 ## Estimator Design
 Kalman filtering is best practiced with a discrete linear model of the system. A discrete linear dynamical system is of the form:
 
