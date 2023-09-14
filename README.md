@@ -9,9 +9,14 @@ The rocket has 13 states:
 - angular velocity (ω<sub>x</sub>, ω<sub>y</sub>, ω<sub>z</sub>)
 - mass (m)
 
-and 4 inputs: 
+4 inputs: 
 - body frame thrust (T<sub>x</sub>, T<sub>y</sub>, T<sub>z</sub>)
 - z-axis moment (M<sub>z</sub>)
+
+and parameters:
+- principal moments of inertia (I<sub>x</sub>, I<sub>y</sub>, I<sub>z</sub>)
+- thrust moment arm (r<sub>T</sub>)
+- specific impulse (I<sub>sp</sub>)
 
 We will start with a general rigid body dynamics model of these 13 states. Note that the forces are in the inertial frame, the moments are in the body frame, and the moments of inertia are about the principal axes.
 
@@ -73,7 +78,7 @@ Kalman filtering is best practiced with a discrete linear model of the system. A
 
 ![image](https://github.com/natronimo/TVC/assets/123428083/e76879f2-f1a0-4384-874d-dc86967bdae3)
 
-To derive the discrete model, we start with the continuous model. The integral of each state with respect to time is evaluated from zero to the time step (the time from *k* to *k*+1) with initial value the state at time *k*.
+To derive the discrete model, we start with the continuous model. The integral of each state with respect to time is evaluated from zero to the time step Ts (the time from *k* to *k*+1) with initial value the state at time *k*.
 
 ![rocket_linearized_dynamics_discrete](https://github.com/natronimo/TVC/assets/123428083/a7144e90-4d59-43b4-9318-cbe47026f5d3)
 
