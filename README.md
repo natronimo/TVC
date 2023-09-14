@@ -48,7 +48,7 @@ The state estimate vector **x̂** is subtracted by the reference state vector **
 The optimal forms of the regulator matrix and estimator matrix are known as the LQR matrix and Kalman matrix, respectively. In the following sections, will derive the above matrices.
 
 ## Regulator Design
-The most porful techniques in control theory are developed for linear dynamical systems. This includes the Linear-Quadratic Regulator (LQR), which is the technique of choice for the propulsive lander simulation. A continuous linear dynamical system is of the form:
+The most powerful techniques in control theory are developed for linear dynamical systems. This includes the Linear-Quadratic Regulator (LQR), which is the technique of choice for the propulsive lander simulation. A continuous linear dynamical system is of the form:
 
 ![image](https://github.com/natronimo/TVC/assets/123428083/2aef6a0d-afec-486b-bc27-de61871bdd85)
 
