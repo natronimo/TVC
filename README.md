@@ -26,12 +26,24 @@ The rocket dynamics model is found by substituting the forces and moments acting
 The state vector will henceforth be referred to as **x** and the time derivative of the state vector as **ẋ**.
 
 ## Simulation Block Diagram
-![image](https://github.com/natronimo/TVC/assets/123428083/06092126-970a-4070-a211-a56f4fae2502)
 
-The simulation begins with a state vector, an input vector, and a randomized disturbance force vector, **w**. These vectors are fed into the dxdt function which is numerically integrated through time to create the state vector at the next time step. The state vector is multiplied by the output matrix and added to a randomized measurement noise vector, **v**, to create the output vector. The output vector is fed into a Kalman Filter, which uses the previous state estimate vector and the previous input vector to create the state estimate vector. The state estimate vector is subtracted by the reference state vector, multiplied by the LQR matrix, and added to the reference input vector to create the input vector. The loop continues.
+![image](https://github.com/natronimo/TVC/assets/123428083/a94c63f2-d154-476a-966c-919c594e87e6)
 
-![image](https://github.com/natronimo/TVC/assets/123428083/3262b7c8-aa8b-40af-8585-afff4f870fc8)
-![image](https://github.com/natronimo/TVC/assets/123428083/f01fc739-cd5a-42cc-b785-fac83be6897d)
+The simulation begins with a state vector, an input vector, and a randomized disturbance force vector, **w**. These vectors are fed into the dxdt function which is numerically integrated through time to create the state vector at the next time step.
+
+The state vector is multiplied by the output matrix and added to a randomized measurement noise vector, **v**, to create the output vector.
+
+IMAGE
+
+The output vector is fed into a Kalman Filter, which uses the previous state estimate vector and the previous input vector to create the state estimate vector.
+
+IMAGE
+
+The state estimate vector is subtracted by the reference state vector, multiplied by the LQR matrix, and added to the reference input vector to create the input vector.
+
+IMAGE
+
+![image](https://github.com/natronimo/TVC/assets/123428083/c41c5e25-9a4d-419c-8a14-9124d5341d22)
 
 In the following sections, we will derive the above matrices.
 
