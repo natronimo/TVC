@@ -1,5 +1,5 @@
 # Propulsive Lander Simulation
-The Propulsive Lander Simulation is a Python based six degrees of freedom variable mass thrust vector controlled rocket simulation. The rocket uses LQR control and Kalman Filter state estimation to track to a given reference position. The rocket mass, principal moments of inertia, thrust moment arm, specific impulse, and thrust constraints are all modifiable, as well as the weight matrices for the LQR and Kalman Filter. "tvc_lqr" runs the simulation and saves a text file of the rocket state at every time step, which is used by "flightgear_interface" to render the simulation in FlightGear Flight Simulator.
+The Propulsive Lander Simulation is a Python based six degrees of freedom variable mass thrust vector controlled rocket simulation. The rocket uses LQR control and Kalman Filter state estimation to track to a given reference position. The rocket mass, principal moments of inertia, thrust moment arm, specific impulse, and thrust constraints are all modifiable, as well as the weight matrices for the LQR and Kalman Filter. "tvc_lqr.py" runs the simulation and saves a text file of the rocket state at every time step, which is used by "flightgear_interface.py" to render the simulation in FlightGear Flight Simulator.
 
 ## Rocket Dynamics
 The rocket has 13 states:
