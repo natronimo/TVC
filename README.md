@@ -33,15 +33,15 @@ The simulation begins with a state vector **x**, an input vector **u**, and a ra
 
 The state vector **x** is multiplied by the output matrix **C** and added to a randomized measurement noise vector **v**, to create the output vector **y**.
 
-IMAGE
+![image](https://github.com/natronimo/TVC/assets/123428083/33a8caaa-c08e-40cf-95ac-3334449677e6)
 
 The output vector **y** is fed into a Kalman Filter, which uses the previous state estimate vector **x̂** and the previous input vector **u** to create the state estimate vector **x̂**.
 
-IMAGE
+![image](https://github.com/natronimo/TVC/assets/123428083/4f1d0a1b-9206-4411-b5e6-49999b06c5f8)
 
 The state estimate vector **x̂** is subtracted by the reference state vector **r**<sub>x</sub>, multiplied by the LQR matrix **K**, and added to the reference input vector **r**<sub>u</sub> to create the input vector **u**.
 
-IMAGE
+![image](https://github.com/natronimo/TVC/assets/123428083/328a033d-048a-4b67-9500-546704b18e6b)
 
 ![image](https://github.com/natronimo/TVC/assets/123428083/c41c5e25-9a4d-419c-8a14-9124d5341d22)
 
