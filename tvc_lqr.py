@@ -81,10 +81,11 @@ Bd = lambda m: np.array([[Ts**2/(2*m) - Ts**4*g*r_T/(24*I_y(m)),                
 C = np.eye(12)    # output matrix
 Q = np.eye(12)    # state weight matrix
 R = 0.01*np.eye(4)    # input weight matrix
-G = np.eye(12)
+G = np.eye(12)    # process noise matrix
 QN = np.eye(12)    # process noise covariance matrix
 RN = 10*np.eye(12)    # measurement noise covariance matrix
 Kf, P, E = ct.dlqe(Ad, G, C, QN, RN)    # LQE matrix
+
 
 # initialize arrays
 x_history = np.empty((13, N))
@@ -187,5 +188,5 @@ plt.title("y")
 plt.figure(1).add_subplot(1, 3, 3, projection='3d')
 plt.plot(xe_history[0], xe_history[1], xe_history[2])
 plt.axis('equal')
-plt.title("xe")
+plt.title("x̂")
 plt.show()
