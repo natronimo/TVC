@@ -82,7 +82,7 @@ The Kalman matrix is found by solving a cost function, which takes as inputs the
 ## Visualization
 "tvc_lqr" will plot the trajectory of the rocket with the accompanying output and state estimate at the end of the simulation.
 
-![image](https://github.com/natronimo/TVC/assets/123428083/be058a27-1f6d-482f-8bb0-1e35ccff643e)
+![image](https://github.com/natronimo/TVC/assets/123428083/73aeebdc-6e99-428e-ab36-108f6e59850f)
 
 In addition to this, the simulation can be rendered in FlightGear Flight Simulator by following the below steps.
 
