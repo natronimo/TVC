@@ -23,35 +23,9 @@ g = 9.81             # gravitational acceleration (m/s^2)
 Ts = 0.01            # time step (s)
 N = 1000             # total steps
 x = np.array([[0], [0], [10], [0], [0], [0], [0], [0], [0], [0], [0], [0], [m]])    # initial state vector
-u = np.array([[0], [0], [m*g], [0]])    # initial input vector
-ref = np.array([[0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0]])    # reference state vector
+u = np.array([[0], [0], [m*g], [0]])                                                # initial input vector
+ref = np.array([[0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0], [0]])        # reference state vector
 
-# system matrix continuous
-A = np.array([[0, 0, 0, 1, 0, 0,  0, 0, 0, 0, 0, 0],
-              [0, 0, 0, 0, 1, 0,  0, 0, 0, 0, 0, 0],
-              [0, 0, 0, 0, 0, 1,  0, 0, 0, 0, 0, 0],
-              [0, 0, 0, 0, 0, 0,  0, g, 0, 0, 0, 0],
-              [0, 0, 0, 0, 0, 0, -g, 0, 0, 0, 0, 0],
-              [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0],
-              [0, 0, 0, 0, 0, 0,  0, 0, 0, 1, 0, 0],
-              [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 1, 0],
-              [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 1],
-              [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0],
-              [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0],
-              [0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0]])
-# input matrix continuous
-B = lambda m: np.array([[          0,          0,   0,        0],
-                        [          0,          0,   0,        0],
-                        [          0,          0,   0,        0],
-                        [        1/m,          0,   0,        0],
-                        [          0,        1/m,   0,        0],
-                        [          0,          0, 1/m,        0],
-                        [          0,          0,   0,        0],
-                        [          0,          0,   0,        0],
-                        [          0,          0,   0,        0],
-                        [          0, r_T/I_x(m),   0,        0],
-                        [-r_T/I_y(m),          0,   0,        0],
-                        [          0,          0,   0, 1/I_z(m)]])
 # system matrix discrete
 Ad = np.array([[1, 0, 0, Ts,  0,  0,          0, Ts**2*g/2, 0,          0, Ts**3*g/6,  0],
                [0, 1, 0,  0, Ts,  0, -Ts**2*g/2,         0, 0, -Ts**3*g/6,         0,  0],
@@ -66,25 +40,25 @@ Ad = np.array([[1, 0, 0, Ts,  0,  0,          0, Ts**2*g/2, 0,          0, Ts**3
                [0, 0, 0,  0,  0,  0,          0,         0, 0,          0,         1,  0],
                [0, 0, 0,  0,  0,  0,          0,         0, 0,          0,         0,  1]])
 # input matrix discrete    
-Bd = lambda m: np.array([[Ts**2/(2*m) - Ts**4*g*r_T/(24*I_y(m)),                                     0,           0,                0],
-                         [                                    0, Ts**2/(2*m) - Ts**4*g*r_T/(24*I_x(m)),           0,                0],
-                         [                                    0,                                     0, Ts**2/(2*m),                0],
-                         [        Ts/m - Ts**3*g*r_T/(6*I_y(m)),                                     0,           0,                0],
-                         [                                    0,         Ts/m - Ts**3*g*r_T/(6*I_x(m)),           0,                0],
-                         [                                    0,                                     0,        Ts/m,                0],
-                         [                                    0,                  Ts**2*r_T/(2*I_x(m)),           0,                0],
-                         [                -Ts**2*r_T/(2*I_y(m)),                                     0,           0,                0],
-                         [                                    0,                                     0,           0, Ts**2/(2*I_z(m))],
-                         [                                    0,                         Ts*r_T/I_x(m),           0,                0],
-                         [                       -Ts*r_T/I_y(m),                                     0,           0,                0],
-                         [                                    0,                                     0,           0,        Ts/I_z(m)]])
-C = np.eye(12)    # output matrix
-Q = np.eye(12)    # state weight matrix
-R = 0.01*np.eye(4)    # input weight matrix
-G = np.eye(12)    # process noise matrix
-QN = np.eye(12)    # process noise covariance matrix
-RN = 10*np.eye(12)    # measurement noise covariance matrix
-Ke, P, E = ct.dlqe(Ad, G, C, QN, RN)    # LQE matrix
+Bd = lambda m: np.array([[-g*r_T*Ts**4/(24*I_y(m)) + Ts**2/(2*m),                                      0,           0,                0],
+                         [                                     0, -g*r_T*Ts**4/(24*I_x(m)) + Ts**2/(2*m),           0,                0],
+                         [                                     0,                                      0, Ts**2/(2*m),                0],
+                         [         Ts/m - Ts**3*g*r_T/(6*I_y(m)),                                      0,           0,                0],
+                         [                                     0,          Ts/m - Ts**3*g*r_T/(6*I_x(m)),           0,                0],
+                         [                                     0,                                      0,        Ts/m,                0],
+                         [                                     0,                   Ts**2*r_T/(2*I_x(m)),           0,                0],
+                         [                 -Ts**2*r_T/(2*I_y(m)),                                      0,           0,                0],
+                         [                                     0,                                      0,           0, Ts**2/(2*I_z(m))],
+                         [                                     0,                          Ts*r_T/I_x(m),           0,                0],
+                         [                        -Ts*r_T/I_y(m),                                      0,           0,                0],
+                         [                                     0,                                      0,           0,        Ts/I_z(m)]])
+C = np.eye(12)                       # output matrix
+Q = np.eye(12)                       # state weight matrix
+R = 0.01*np.eye(4)                   # input weight matrix
+G = np.eye(12)                       # process noise matrix
+QN = np.eye(12)                      # process noise covariance matrix
+RN = 10*np.eye(12)                   # measurement noise covariance matrix
+Ke = ct.dlqe(Ad, G, C, QN, RN)[0]    # LQE matrix
 
 # initialize arrays
 x_history = np.empty((13, N))
@@ -111,10 +85,10 @@ def dxdt(t, y):
     # mass (kg)
     m = y[12]
 
-    T_body = u[0:3]    # thrust vector body frame (N)
+    T_body = u[0:3]                                                   # thrust vector body frame (N)
     rotm = Rotation.from_euler('zyx', [theta_z, theta_y, theta_x])    # rotation matrix
-    T_inertial = np.matmul(rotm.as_matrix(), T_body)    # thrust vector inertial frame (N)
-    T_mag = np.linalg.norm(T_body)    # thrust magnitude (N)
+    T_inertial = np.matmul(rotm.as_matrix(), T_body)                  # thrust vector inertial frame (N)
+    T_mag = np.linalg.norm(T_body)                                    # thrust magnitude (N)
 
     # intertial frame forces (N)
     F_x = T_inertial[0, 0]
@@ -146,18 +120,18 @@ for t in range(N):
 
     # integrate state vector through time
     sol = solve_ivp(dxdt, [0, Ts], np.transpose(x)[0], t_eval=[Ts])
-    x = sol.y    # state vector
+    x = sol.y                                                          # state vector
 
-    m = x[12, 0]    # mass (kg)
-    v = 0.1*np.random.standard_normal((12, 1))    # measurement noise vector
+    m = x[12, 0]                                                       # mass (kg)
+    v = 0.1*np.random.standard_normal((12, 1))                         # measurement noise vector
 
-    y = np.matmul(C, x[0:12]) + v    # output vector
+    y = np.matmul(C, x[0:12]) + v                                      # output vector
 
-    xe = np.matmul(Ad, xe_last) + np.matmul(Bd(m), u_last)    # state estimate vector predict step
-    xe = xe + np.matmul(Ke, y - np.matmul(C, xe))    # state estimate vector update step
+    xe = np.matmul(Ad, xe_last) + np.matmul(Bd(m), u_last)             # state estimate vector predict step
+    xe = xe + np.matmul(Ke, y - np.matmul(C, xe))                      # state estimate vector update step
 
-    Kr, S, E = ct.lqr(A, B(m), Q, R)    # LQR matrix
-    u = np.matmul(Kr, ref - xe) + np.array([[0], [0], [m*g], [0]])    # input vector
+    Kr = ct.dlqr(Ad, Bd(m), Q, R)[0]                                   # LQR matrix
+    u = np.matmul(Kr, ref - xe) + np.array([[0], [0], [m*g], [0]])     # input vector
 
     # constrain input
     u[0:2] = np.clip(u[0:2], -T_s_magLim, T_s_magLim)
